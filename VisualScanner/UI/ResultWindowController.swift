@@ -1,12 +1,14 @@
 import Cocoa
 import SwiftUI
+import AVFoundation
+import NaturalLanguage
 
 class ResultWindowController {
     private static var activeWindows: [NSWindow] = []
 
     static func show(text: String) {
         let window = EscapableWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 420),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -16,14 +18,53 @@ class ResultWindowController {
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.center()
-        window.minSize = NSSize(width: 250, height: 250)
+        window.minSize = NSSize(width: 400, height: 250)
 
         let contentView = NSView(frame: window.contentView!.bounds)
         contentView.autoresizingMask = [.width, .height]
 
+        // --- Top button bar ---
+
+        // File dropdown
+        let filePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+        filePopup.translatesAutoresizingMaskIntoConstraints = false
+        filePopup.identifier = NSUserInterfaceItemIdentifier("filePopup")
+        filePopup.target = ResultWindowHelper.shared
+        filePopup.action = #selector(ResultWindowHelper.fileSelectionChanged(_:))
+        contentView.addSubview(filePopup)
+        ResultWindowHelper.shared.populateFilePopup(filePopup)
+
+        // Save button
+        let saveButton = NSButton(frame: .zero)
+        saveButton.title = "Save"
+        saveButton.bezelStyle = .rounded
+        saveButton.translatesAutoresizingMaskIntoConstraints = false
+        saveButton.target = ResultWindowHelper.shared
+        saveButton.action = #selector(ResultWindowHelper.saveText(_:))
+        saveButton.identifier = NSUserInterfaceItemIdentifier("saveButton")
+        contentView.addSubview(saveButton)
+
+        // Save As button
+        let saveAsButton = NSButton(frame: .zero)
+        saveAsButton.title = "Save As"
+        saveAsButton.bezelStyle = .rounded
+        saveAsButton.translatesAutoresizingMaskIntoConstraints = false
+        saveAsButton.target = ResultWindowHelper.shared
+        saveAsButton.action = #selector(ResultWindowHelper.saveAsText(_:))
+        contentView.addSubview(saveAsButton)
+
+        // Speak button
+        let speakButton = NSButton(frame: .zero)
+        speakButton.title = "Speak"
+        speakButton.bezelStyle = .rounded
+        speakButton.translatesAutoresizingMaskIntoConstraints = false
+        speakButton.target = ResultWindowHelper.shared
+        speakButton.action = #selector(ResultWindowHelper.speakText(_:))
+        contentView.addSubview(speakButton)
+
         // Copy button
         let copyButton = NSButton(frame: .zero)
-        copyButton.title = "Copy to Clipboard"
+        copyButton.title = "Copy"
         copyButton.bezelStyle = .rounded
         copyButton.translatesAutoresizingMaskIntoConstraints = false
         copyButton.target = ResultWindowHelper.shared
@@ -90,10 +131,28 @@ class ResultWindowController {
         contentView.addSubview(translationScroll)
 
         // --- Layout ---
+        // Top row: [filePopup] [Save] [Save As]  ...  [Speak] [Copy]
         NSLayoutConstraint.activate([
+            // Left group: file popup
+            filePopup.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            filePopup.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+            filePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+
+            // Save + Save As next to popup
+            saveButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            saveButton.leadingAnchor.constraint(equalTo: filePopup.trailingAnchor, constant: 6),
+
+            saveAsButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            saveAsButton.leadingAnchor.constraint(equalTo: saveButton.trailingAnchor, constant: 6),
+
+            // Right group: Speak + Copy
             copyButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             copyButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
 
+            speakButton.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            speakButton.trailingAnchor.constraint(equalTo: copyButton.leadingAnchor, constant: -6),
+
+            // Content below buttons
             originalLabel.topAnchor.constraint(equalTo: copyButton.bottomAnchor, constant: 8),
             originalLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
 
@@ -113,7 +172,6 @@ class ResultWindowController {
             translationScroll.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             translationScroll.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
 
-            // Split space roughly 50/50 between the two scroll views
             originalScroll.heightAnchor.constraint(equalTo: translationScroll.heightAnchor),
         ])
 
@@ -145,13 +203,19 @@ class ResultWindowController {
     }
 }
 
-// Helper class for button actions (needs to be an NSObject for @objc selectors)
+// MARK: - Helper class for button actions
+
 class ResultWindowHelper: NSObject {
     static let shared = ResultWindowHelper()
+    private let synthesizer = AVSpeechSynthesizer()
 
-    @objc func copyText(_ sender: NSButton) {
-        guard let window = sender.window,
-              let contentView = window.contentView else { return }
+    private static let directoryKey = "saveDirectoryPath"
+    private static let selectedFileKey = "saveSelectedFileName"
+
+    // MARK: - Text extraction
+
+    private func textFromWindow(_ window: NSWindow) -> (original: String, translated: String) {
+        guard let contentView = window.contentView else { return ("", "") }
 
         var original = ""
         var translated = ""
@@ -173,6 +237,210 @@ class ResultWindowHelper: NSObject {
             }
         }
 
+        return (original, translated)
+    }
+
+    private func filePopup(in window: NSWindow) -> NSPopUpButton? {
+        window.contentView?.subviews.first(where: {
+            ($0 as? NSPopUpButton)?.identifier?.rawValue == "filePopup"
+        }) as? NSPopUpButton
+    }
+
+    // MARK: - File popup
+
+    func populateFilePopup(_ popup: NSPopUpButton) {
+        popup.removeAllItems()
+
+        guard let dirPath = UserDefaults.standard.string(forKey: Self.directoryKey),
+              FileManager.default.fileExists(atPath: dirPath) else {
+            popup.addItem(withTitle: "No folder selected")
+            popup.isEnabled = false
+            return
+        }
+
+        // List .txt files in the directory
+        let dirURL = URL(fileURLWithPath: dirPath)
+        let files: [String]
+        do {
+            files = try FileManager.default.contentsOfDirectory(atPath: dirPath)
+                .filter { $0.hasSuffix(".txt") }
+                .sorted()
+        } catch {
+            popup.addItem(withTitle: "No folder selected")
+            popup.isEnabled = false
+            return
+        }
+
+        if files.isEmpty {
+            popup.addItem(withTitle: "No .txt files")
+            popup.isEnabled = false
+            return
+        }
+
+        popup.isEnabled = true
+        for file in files {
+            popup.addItem(withTitle: file)
+            popup.lastItem?.representedObject = dirURL.appendingPathComponent(file).path
+        }
+
+        // Restore previously selected file
+        if let selectedName = UserDefaults.standard.string(forKey: Self.selectedFileKey) {
+            popup.selectItem(withTitle: selectedName)
+        }
+    }
+
+    @objc func fileSelectionChanged(_ sender: NSPopUpButton) {
+        if let name = sender.selectedItem?.title {
+            UserDefaults.standard.set(name, forKey: Self.selectedFileKey)
+        }
+    }
+
+    // MARK: - Save
+
+    @objc func saveText(_ sender: NSButton) {
+        guard let window = sender.window,
+              let popup = filePopup(in: window) else { return }
+
+        // If no folder selected yet, prompt
+        guard let path = popup.selectedItem?.representedObject as? String else {
+            saveAsText(sender)
+            return
+        }
+
+        let url = URL(fileURLWithPath: path)
+        appendToFile(url: url, window: window, feedbackButton: sender)
+    }
+
+    @objc func saveAsText(_ sender: NSButton) {
+        guard let window = sender.window else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Save Scanned Text"
+        panel.nameFieldStringValue = "scanned_words.txt"
+        panel.allowedContentTypes = [.plainText]
+        panel.canCreateDirectories = true
+
+        // Start in saved directory if we have one
+        if let dirPath = UserDefaults.standard.string(forKey: Self.directoryKey) {
+            panel.directoryURL = URL(fileURLWithPath: dirPath)
+        }
+
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, response == .OK, let url = panel.url else { return }
+
+            // Remember directory and selected file
+            let dirPath = url.deletingLastPathComponent().path
+            UserDefaults.standard.set(dirPath, forKey: Self.directoryKey)
+            UserDefaults.standard.set(url.lastPathComponent, forKey: Self.selectedFileKey)
+
+            // Refresh popup in this window
+            if let popup = self.filePopup(in: window) {
+                self.populateFilePopup(popup)
+            }
+
+            // Also refresh popups in other open windows
+            self.refreshAllFilePopups(except: window)
+
+            // Save to the file
+            let saveButton = window.contentView?.subviews.first(where: {
+                ($0 as? NSButton)?.identifier?.rawValue == "saveButton"
+            }) as? NSButton
+
+            self.appendToFile(url: url, window: window, feedbackButton: saveButton)
+        }
+    }
+
+    private func refreshAllFilePopups(except window: NSWindow) {
+        for w in NSApp.windows where w !== window {
+            if let popup = filePopup(in: w) {
+                populateFilePopup(popup)
+            }
+        }
+    }
+
+    private func appendToFile(url: URL, window: NSWindow, feedbackButton: NSButton?) {
+        let (original, translated) = textFromWindow(window)
+        guard !original.isEmpty else { return }
+
+        var entry = original
+        if !translated.isEmpty {
+            entry += "\n" + translated
+        }
+        entry += "\n---\n"
+
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                let handle = try FileHandle(forWritingTo: url)
+                handle.seekToEndOfFile()
+                handle.write(entry.data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                try entry.write(to: url, atomically: true, encoding: .utf8)
+            }
+
+            // Refresh popup in case a new file was created
+            if let popup = filePopup(in: window) {
+                populateFilePopup(popup)
+            }
+
+            // Brief visual feedback
+            let title = feedbackButton?.title ?? "Save"
+            feedbackButton?.title = "Saved!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                feedbackButton?.title = title
+            }
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Failed to save"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.beginSheetModal(for: window)
+        }
+    }
+
+    // MARK: - Speak
+
+    @objc func speakText(_ sender: NSButton) {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+            sender.title = "Speak"
+            return
+        }
+
+        guard let window = sender.window else { return }
+        let (original, _) = textFromWindow(window)
+        guard !original.isEmpty else { return }
+
+        let utterance = AVSpeechUtterance(string: original)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(original)
+        if let lang = recognizer.dominantLanguage {
+            if let voice = AVSpeechSynthesisVoice(language: lang.rawValue) {
+                utterance.voice = voice
+            }
+        }
+
+        sender.title = "Stop"
+        synthesizer.speak(utterance)
+
+        DispatchQueue.global().async { [weak self] in
+            while self?.synthesizer.isSpeaking == true {
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+            DispatchQueue.main.async {
+                sender.title = "Speak"
+            }
+        }
+    }
+
+    // MARK: - Copy
+
+    @objc func copyText(_ sender: NSButton) {
+        guard let window = sender.window else { return }
+        let (original, translated) = textFromWindow(window)
+
         var clipText = original
         if !translated.isEmpty {
             clipText += "\n\n" + translated
@@ -181,7 +449,6 @@ class ResultWindowHelper: NSObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(clipText, forType: .string)
 
-        // Brief visual feedback
         let title = sender.title
         sender.title = "Copied!"
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

@@ -10,5 +10,10 @@ class EscapableWindow: NSWindow {
         }
     }
 
+    /// Called when Escape propagates up the responder chain from a text view.
+    override func cancelOperation(_ sender: Any?) {
+        close()
+    }
+
     override var canBecomeKey: Bool { true }
 }
