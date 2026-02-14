@@ -110,6 +110,15 @@ class ResultWindowController {
         translationLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(translationLabel)
 
+        // Keep line breaks toggle (off by default = line breaks ignored)
+        let lineBreakToggle = NSButton(checkboxWithTitle: "Keep line breaks", target: ResultWindowHelper.shared, action: #selector(ResultWindowHelper.toggleLineBreaks(_:)))
+        lineBreakToggle.translatesAutoresizingMaskIntoConstraints = false
+        lineBreakToggle.controlSize = .small
+        lineBreakToggle.font = NSFont.systemFont(ofSize: 11)
+        lineBreakToggle.state = .off
+        lineBreakToggle.identifier = NSUserInterfaceItemIdentifier("lineBreakToggle")
+        contentView.addSubview(lineBreakToggle)
+
         let translationScroll = NSScrollView(frame: .zero)
         translationScroll.translatesAutoresizingMaskIntoConstraints = false
         translationScroll.hasVerticalScroller = true
@@ -167,6 +176,9 @@ class ResultWindowController {
             translationLabel.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 8),
             translationLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
 
+            lineBreakToggle.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
+            lineBreakToggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+
             translationScroll.topAnchor.constraint(equalTo: translationLabel.bottomAnchor, constant: 4),
             translationScroll.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             translationScroll.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
@@ -176,9 +188,14 @@ class ResultWindowController {
         ])
 
         // --- Translation bridge (invisible SwiftUI helper) ---
+        // Line breaks are ignored by default
+        let textForTranslation = text
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
         if #available(macOS 15.0, *) {
             let bridge = NSHostingView(rootView: TranslationBridge(
-                text: text,
+                text: textForTranslation,
                 onTranslated: { [weak translatedTextView] translated in
                     guard let tv = translatedTextView else { return }
                     if translated.isEmpty {
@@ -190,6 +207,7 @@ class ResultWindowController {
                 }
             ))
             bridge.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
+            bridge.identifier = NSUserInterfaceItemIdentifier("translationBridge")
             contentView.addSubview(bridge)
         } else {
             translatedTextView.string = "Requires macOS 15 or later"
@@ -432,6 +450,70 @@ class ResultWindowHelper: NSObject {
             DispatchQueue.main.async {
                 sender.title = "Speak"
             }
+        }
+    }
+
+    // MARK: - Toggle line breaks
+
+    @objc func toggleLineBreaks(_ sender: NSButton) {
+        guard let window = sender.window,
+              let contentView = window.contentView else { return }
+
+        // Get original text
+        let (original, _) = textFromWindow(window)
+        guard !original.isEmpty else { return }
+
+        // Prepare text for translation
+        let textForTranslation: String
+        if sender.state == .on {
+            // Keep line breaks
+            textForTranslation = original
+        } else {
+            // Ignore line breaks (default)
+            textForTranslation = original
+                .replacingOccurrences(of: "\r\n", with: " ")
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+        }
+
+        // Reset translated text view to "Translating…"
+        for subview in contentView.subviews {
+            guard let scrollView = subview as? NSScrollView,
+                  let textView = scrollView.documentView as? NSTextView,
+                  textView.identifier?.rawValue == "translatedTextView" else { continue }
+            textView.string = "Translating…"
+            textView.textColor = .secondaryLabelColor
+            break
+        }
+
+        // Remove existing bridge
+        if let oldBridge = contentView.subviews.first(where: {
+            $0.identifier?.rawValue == "translationBridge"
+        }) {
+            oldBridge.removeFromSuperview()
+        }
+
+        // Create new bridge with processed text
+        if #available(macOS 15.0, *) {
+            let translatedTV = contentView.subviews.compactMap({ $0 as? NSScrollView })
+                .compactMap({ $0.documentView as? NSTextView })
+                .first(where: { $0.identifier?.rawValue == "translatedTextView" })
+
+            let bridge = NSHostingView(rootView: TranslationBridge(
+                text: textForTranslation,
+                onTranslated: { [weak translatedTV] translated in
+                    guard let tv = translatedTV else { return }
+                    if translated.isEmpty {
+                        tv.string = "Translation unavailable"
+                    } else {
+                        tv.string = translated
+                        tv.textColor = .labelColor
+                    }
+                }
+            ))
+            bridge.frame = NSRect(x: 0, y: 0, width: 1, height: 1)
+            bridge.identifier = NSUserInterfaceItemIdentifier("translationBridge")
+            contentView.addSubview(bridge)
         }
     }
 
