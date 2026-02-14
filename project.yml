@@ -1,0 +1,40 @@
+name: VisualScanner
+options:
+  bundleIdPrefix: com.joegraham
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  VisualScanner:
+    type: application
+    platform: macOS
+    sources:
+      - path: VisualScanner
+        excludes:
+          - "**/*.py"
+      - path: VisualScanner/OCR/ocr_script.py
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_FILE: VisualScanner/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: VisualScanner/Resources/VisualScanner.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.joegraham.VisualScanner
+        PRODUCT_NAME: VisualScanner
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+
+schemes:
+  VisualScanner:
+    build:
+      targets:
+        VisualScanner: all
+    run:
+      config: Debug
