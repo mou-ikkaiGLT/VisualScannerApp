@@ -19,6 +19,7 @@
 		BB9011ABF9022A5B7451B89B /* TextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE8D5AFD775E608667D4945 /* TextRecognizer.swift */; };
 		C4FDF5E7AB11680A7F1145FA /* ocr_script.py in Resources */ = {isa = PBXBuildFile; fileRef = 455D7C4C17949BA19578A14C /* ocr_script.py */; };
 		C52FF97BC4C9990DA38FCEA8 /* TranslatableTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44222D70686B1EDC0FD1420F /* TranslatableTextView.swift */; };
+		EBF95571B9764F57B2522749 /* TranslationBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C50AB684B09990D62E9B0B5 /* TranslationBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		455D7C4C17949BA19578A14C /* ocr_script.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ocr_script.py; sourceTree = "<group>"; };
 		4D353AFA9C76F2733113029C /* WebPopupController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPopupController.swift; sourceTree = "<group>"; };
 		4DA4D7F89CD5C30FA9A0C708 /* VisualScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisualScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C50AB684B09990D62E9B0B5 /* TranslationBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationBridge.swift; sourceTree = "<group>"; };
 		9FE8D5AFD775E608667D4945 /* TextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRecognizer.swift; sourceTree = "<group>"; };
 		A165EAEC0C85CEE7B98DD8EC /* EscapableWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscapableWindow.swift; sourceTree = "<group>"; };
 		CBBC6DF3576645FE4829C4CA /* ScreenSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSelector.swift; sourceTree = "<group>"; };
@@ -73,6 +75,7 @@
 				D96C770CC761F7876B65478B /* ResultWindowController.swift */,
 				DB780BA3A37AA78AA466BB26 /* StatusBarController.swift */,
 				44222D70686B1EDC0FD1420F /* TranslatableTextView.swift */,
+				7C50AB684B09990D62E9B0B5 /* TranslationBridge.swift */,
 				4D353AFA9C76F2733113029C /* WebPopupController.swift */,
 			);
 			path = UI;
@@ -199,6 +202,7 @@
 				444D51F04A2927B05C7CF17B /* StatusBarController.swift in Sources */,
 				BB9011ABF9022A5B7451B89B /* TextRecognizer.swift in Sources */,
 				C52FF97BC4C9990DA38FCEA8 /* TranslatableTextView.swift in Sources */,
+				EBF95571B9764F57B2522749 /* TranslationBridge.swift in Sources */,
 				0B4EF7807695902A6AE2F673 /* WebPopupController.swift in Sources */,
 				9D43EA521DBCC1746B7D0D47 /* main.swift in Sources */,
 			);
