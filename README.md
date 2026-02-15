@@ -3,6 +3,7 @@
 A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file.
 
 ## Features
+![FullDemo](/Examples/FullDemo.gif)
 
 - **Screen region capture** — select any area of the screen with a crosshair overlay
 - **PaddleOCR** — accurate text recognition for any language using the PP-OCRv5 server model
