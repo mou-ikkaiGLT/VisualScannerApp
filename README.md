@@ -7,7 +7,9 @@ A macOS menu bar app that captures a region of the screen, runs OCR using [Paddl
 - **Screen region capture** — select any area of the screen with a crosshair overlay
 - **PaddleOCR** — accurate text recognition for any language using the PP-OCRv5 server model
 - **Vertical text support** — correctly reads vertical CJK text in right-to-left order
+- **Editable scanned text** — modify or delete text in the original text area before translating or saving
 - **Auto-translation** — translates detected text to English using Apple's Translation framework (macOS 15+)
+- **Retranslate** — re-run translation after editing the scanned text
 - **Ignore line breaks** — strips OCR line breaks before translating for better results (on by default)
 - **Text-to-speech** — speaks the original text with language-appropriate voice selection
 - **Save to file** — save scanned text and translations to `.txt` files with a persistent file/folder picker

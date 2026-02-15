@@ -84,7 +84,7 @@ class ResultWindowController {
         originalScroll.borderType = .noBorder
 
         let originalTextView = TranslatableTextView(frame: .zero)
-        originalTextView.isEditable = false
+        originalTextView.isEditable = true
         originalTextView.isSelectable = true
         originalTextView.font = NSFont.systemFont(ofSize: 16)
         originalTextView.string = text
@@ -109,6 +109,17 @@ class ResultWindowController {
         translationLabel.textColor = .secondaryLabelColor
         translationLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(translationLabel)
+
+        // Retranslate button
+        let retranslateButton = NSButton(frame: .zero)
+        retranslateButton.title = "Retranslate"
+        retranslateButton.bezelStyle = .rounded
+        retranslateButton.controlSize = .small
+        retranslateButton.font = NSFont.systemFont(ofSize: 11)
+        retranslateButton.translatesAutoresizingMaskIntoConstraints = false
+        retranslateButton.target = ResultWindowHelper.shared
+        retranslateButton.action = #selector(ResultWindowHelper.retranslate(_:))
+        contentView.addSubview(retranslateButton)
 
         // Keep line breaks toggle (off by default = line breaks ignored)
         let lineBreakToggle = NSButton(checkboxWithTitle: "Keep line breaks", target: ResultWindowHelper.shared, action: #selector(ResultWindowHelper.toggleLineBreaks(_:)))
@@ -175,6 +186,9 @@ class ResultWindowController {
 
             translationLabel.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 8),
             translationLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+
+            retranslateButton.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
+            retranslateButton.leadingAnchor.constraint(equalTo: translationLabel.trailingAnchor, constant: 8),
 
             lineBreakToggle.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
             lineBreakToggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
@@ -453,23 +467,37 @@ class ResultWindowHelper: NSObject {
         }
     }
 
+    // MARK: - Retranslate
+
+    @objc func retranslate(_ sender: NSButton) {
+        guard let window = sender.window else { return }
+        performRetranslation(in: window)
+    }
+
     // MARK: - Toggle line breaks
 
     @objc func toggleLineBreaks(_ sender: NSButton) {
-        guard let window = sender.window,
-              let contentView = window.contentView else { return }
+        guard let window = sender.window else { return }
+        performRetranslation(in: window)
+    }
 
-        // Get original text
+    private func performRetranslation(in window: NSWindow) {
+        guard let contentView = window.contentView else { return }
+
+        // Get current original text
         let (original, _) = textFromWindow(window)
         guard !original.isEmpty else { return }
 
-        // Prepare text for translation
+        // Check line break toggle state
+        let keepLineBreaks = contentView.subviews
+            .compactMap { $0 as? NSButton }
+            .first(where: { $0.identifier?.rawValue == "lineBreakToggle" })?
+            .state == .on
+
         let textForTranslation: String
-        if sender.state == .on {
-            // Keep line breaks
+        if keepLineBreaks {
             textForTranslation = original
         } else {
-            // Ignore line breaks (default)
             textForTranslation = original
                 .replacingOccurrences(of: "\r\n", with: " ")
                 .replacingOccurrences(of: "\n", with: " ")
