@@ -59,6 +59,15 @@ The DMG will be created on your Desktop. Recipients should right-click and selec
 xattr -cr /Applications/VisualScanner.app
 ```
 
+## Permissions
+
+VisualScanner requires the following macOS permissions to function:
+
+- **Screen Recording** — needed to capture screen regions via ScreenCaptureKit. You will be prompted to grant this in System Settings > Privacy & Security > Screen Recording on first use.
+- **Accessibility** — needed for the global hotkey (`Cmd+Shift+V`) to work via CGEvent tap. You will be prompted to grant this in System Settings > Privacy & Security > Accessibility.
+
+The app is not sandboxed, as it needs to invoke the system Python installation to run PaddleOCR.
+
 ## Usage
 
 1. Launch the app — a **VS** icon appears in the menu bar
