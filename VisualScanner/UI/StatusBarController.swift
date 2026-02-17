@@ -22,7 +22,7 @@ class StatusBarController {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            button.title = "VS"
+            button.title = "掃"
             button.toolTip = "VisualScanner — Click to capture text from screen"
         }
 
