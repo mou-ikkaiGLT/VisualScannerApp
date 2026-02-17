@@ -1,6 +1,31 @@
 import Cocoa
 
-struct TextRecognizer {
+class TextRecognizer {
+
+    // MARK: - Persistent process state
+
+    static let shared = TextRecognizer()
+
+    private var persistentProcess: Process?
+    private var stdinHandle: FileHandle?
+    private var stdoutHandle: FileHandle?
+    private let processLock = NSLock()
+    private var isReady = false
+
+    private static let keepLoadedKey = "keepModelLoaded"
+
+    static var keepModelLoaded: Bool {
+        get { UserDefaults.standard.bool(forKey: keepLoadedKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: keepLoadedKey)
+            if newValue {
+                shared.warmUp()
+            } else {
+                shared.stopPersistentProcess()
+            }
+        }
+    }
+
     /// Recognizes text from a CGImage by saving it to a temp file and
     /// running PaddleOCR via a bundled Python script.
     static func recognize(from image: CGImage, completion: @escaping (String) -> Void) {
@@ -17,30 +42,164 @@ struct TextRecognizer {
 
             defer { try? FileManager.default.removeItem(at: tempURL) }
 
-            // 2. Find the bundled Python script
-            guard let scriptPath = Bundle.main.path(forResource: "ocr_script", ofType: "py") else {
-                print("TextRecognizer: ocr_script.py not found in bundle")
-                DispatchQueue.main.async { completion("") }
-                return
+            let text: String
+            if keepModelLoaded {
+                text = shared.recognizeWithPersistentProcess(imagePath: tempURL.path)
+            } else {
+                text = recognizeOneShot(imagePath: tempURL.path)
             }
 
-            // 3. Find python3
-            guard let pythonPath = findPython3() else {
-                print("TextRecognizer: python3 not found")
-                DispatchQueue.main.async { completion("") }
-                return
-            }
-
-            // 4. Run the script
-            let result = runProcess(
-                executablePath: pythonPath,
-                arguments: [scriptPath, tempURL.path],
-                environment: buildEnvironment()
-            )
-
-            // 5. Parse JSON output
-            let text = parseOCRResult(result)
             DispatchQueue.main.async { completion(text) }
+        }
+    }
+
+    // MARK: - One-shot mode (original behavior)
+
+    private static func recognizeOneShot(imagePath: String) -> String {
+        guard let scriptPath = Bundle.main.path(forResource: "ocr_script", ofType: "py") else {
+            print("TextRecognizer: ocr_script.py not found in bundle")
+            return ""
+        }
+        guard let pythonPath = findPython3() else {
+            print("TextRecognizer: python3 not found")
+            return ""
+        }
+
+        let result = runProcess(
+            executablePath: pythonPath,
+            arguments: [scriptPath, imagePath],
+            environment: buildEnvironment()
+        )
+        return parseOCRResult(result)
+    }
+
+    // MARK: - Persistent process mode
+
+    /// Pre-launch the Python process so the model is loaded and ready.
+    func warmUp() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.ensurePersistentProcess()
+        }
+    }
+
+    func stopPersistentProcess() {
+        processLock.lock()
+        defer { processLock.unlock() }
+        if let process = persistentProcess, process.isRunning {
+            // Close stdin so the Python script's stdin loop ends naturally
+            // and it exits with code 0 (no crash dialog)
+            stdinHandle?.closeFile()
+            process.waitUntilExit()
+        }
+        persistentProcess = nil
+        stdinHandle = nil
+        stdoutHandle = nil
+        isReady = false
+    }
+
+    private func ensurePersistentProcess() {
+        processLock.lock()
+        defer { processLock.unlock() }
+
+        // Already running and ready
+        if let process = persistentProcess, process.isRunning, isReady {
+            return
+        }
+
+        // Clean up dead process
+        persistentProcess = nil
+        stdinHandle = nil
+        stdoutHandle = nil
+        isReady = false
+
+        guard let scriptPath = Bundle.main.path(forResource: "ocr_script", ofType: "py") else {
+            print("TextRecognizer: ocr_script.py not found in bundle")
+            return
+        }
+        guard let pythonPath = Self.findPython3() else {
+            print("TextRecognizer: python3 not found")
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: pythonPath)
+        process.arguments = [scriptPath, "--server"]
+        process.environment = Self.buildEnvironment()
+
+        let stdinPipe = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        do {
+            try process.run()
+        } catch {
+            print("TextRecognizer: Failed to start persistent process: \(error)")
+            return
+        }
+
+        persistentProcess = process
+        stdinHandle = stdinPipe.fileHandleForWriting
+        stdoutHandle = stdoutPipe.fileHandleForReading
+
+        // Wait for __READY__ sentinel
+        if let line = readLine(from: stdoutPipe.fileHandleForReading),
+           line.contains("__READY__") {
+            isReady = true
+            print("TextRecognizer: Persistent process ready")
+        } else {
+            print("TextRecognizer: Persistent process failed to become ready")
+            process.terminate()
+            persistentProcess = nil
+        }
+    }
+
+    private func recognizeWithPersistentProcess(imagePath: String) -> String {
+        processLock.lock()
+
+        // Ensure process is running
+        if persistentProcess == nil || !persistentProcess!.isRunning || !isReady {
+            processLock.unlock()
+            ensurePersistentProcess()
+            processLock.lock()
+        }
+
+        guard let stdin = stdinHandle, let stdout = stdoutHandle, isReady else {
+            processLock.unlock()
+            // Fall back to one-shot
+            return Self.recognizeOneShot(imagePath: imagePath)
+        }
+
+        // Send image path
+        let command = imagePath + "\n"
+        stdin.write(command.data(using: .utf8)!)
+
+        // Read lines until __DONE__ sentinel
+        var output = ""
+        while let line = readLine(from: stdout) {
+            if line.contains("__DONE__") {
+                break
+            }
+            output += line + "\n"
+        }
+
+        processLock.unlock()
+
+        return Self.parseOCRResult(output)
+    }
+
+    /// Read a single line from a file handle (blocking).
+    private func readLine(from handle: FileHandle) -> String? {
+        var lineData = Data()
+        while true {
+            let byte = handle.readData(ofLength: 1)
+            if byte.isEmpty { return nil } // EOF
+            if byte[0] == 0x0A { // newline
+                return String(data: lineData, encoding: .utf8)
+            }
+            lineData.append(byte)
         }
     }
 

@@ -48,55 +48,82 @@ def sort_by_layout(texts, dt_polys):
     return [e[0] for e in entries]
 
 
+def init_ocr():
+    """Suppress logging and initialize the PaddleOCR engine."""
+    os.environ.setdefault("GLOG_minloglevel", "2")
+    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+    import logging
+    logging.disable(logging.DEBUG)
+    import warnings
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+    from paddleocr import PaddleOCR
+    return PaddleOCR(
+        text_recognition_model_name='PP-OCRv5_server_rec',
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_textline_orientation=False,
+        lang='en',
+    )
+
+
+def run_ocr(ocr, image_path):
+    """Run OCR on a single image and return the JSON result string."""
+    if not os.path.exists(image_path):
+        return json.dumps({"success": False, "error": f"Image not found: {image_path}", "text": "", "lines": []})
+
+    result = ocr.predict(image_path)
+
+    lines = []
+    for res in result:
+        if isinstance(res, dict) and 'rec_texts' in res:
+            texts = res['rec_texts']
+            dt_polys = res.get('dt_polys', [])
+            if texts and dt_polys and len(texts) == len(dt_polys):
+                lines.extend(sort_by_layout(texts, dt_polys))
+            else:
+                lines.extend(texts)
+        elif isinstance(res, list):
+            for line in res:
+                if line and len(line) >= 2:
+                    text_info = line[1]
+                    if text_info and len(text_info) >= 1:
+                        lines.append(str(text_info[0]))
+
+    full_text = "\n".join(lines)
+    return json.dumps({"success": True, "text": full_text, "lines": lines})
+
+
 def main():
-    if len(sys.argv) < 2:
+    server_mode = "--server" in sys.argv
+
+    if not server_mode and len(sys.argv) < 2:
         print(json.dumps({"success": False, "error": "No image path provided", "text": "", "lines": []}))
         sys.exit(1)
 
-    image_path = sys.argv[1]
-    if not os.path.exists(image_path):
-        print(json.dumps({"success": False, "error": f"Image not found: {image_path}", "text": "", "lines": []}))
-        sys.exit(1)
-
     try:
-        # Suppress PaddlePaddle and PaddleOCR logging noise
-        os.environ.setdefault("GLOG_minloglevel", "2")
-        os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-        import logging
-        logging.disable(logging.DEBUG)
-        import warnings
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        ocr = init_ocr()
 
-        from paddleocr import PaddleOCR
-
-        ocr = PaddleOCR(
-            text_recognition_model_name='PP-OCRv5_server_rec',
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            lang='en',
-        )
-
-        result = ocr.predict(image_path)
-
-        lines = []
-        for res in result:
-            if isinstance(res, dict) and 'rec_texts' in res:
-                texts = res['rec_texts']
-                dt_polys = res.get('dt_polys', [])
-                if texts and dt_polys and len(texts) == len(dt_polys):
-                    lines.extend(sort_by_layout(texts, dt_polys))
-                else:
-                    lines.extend(texts)
-            elif isinstance(res, list):
-                for line in res:
-                    if line and len(line) >= 2:
-                        text_info = line[1]
-                        if text_info and len(text_info) >= 1:
-                            lines.append(str(text_info[0]))
-
-        full_text = "\n".join(lines)
-        print(json.dumps({"success": True, "text": full_text, "lines": lines}))
+        if server_mode:
+            # Server mode: read image paths from stdin, one per line.
+            # Output one JSON line per image, terminated by a sentinel.
+            sys.stdout.write("__READY__\n")
+            sys.stdout.flush()
+            for path_line in sys.stdin:
+                image_path = path_line.strip()
+                if not image_path:
+                    continue
+                try:
+                    result = run_ocr(ocr, image_path)
+                except Exception as e:
+                    result = json.dumps({"success": False, "error": str(e), "text": "", "lines": []})
+                sys.stdout.write(result + "\n")
+                sys.stdout.write("__DONE__\n")
+                sys.stdout.flush()
+        else:
+            # Single-shot mode
+            image_path = sys.argv[1]
+            print(run_ocr(ocr, image_path))
 
     except ImportError as e:
         print(json.dumps({

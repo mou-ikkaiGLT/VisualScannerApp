@@ -1,10 +1,22 @@
 import Cocoa
+import AppKit
 
 class StatusBarController {
     private var statusItem: NSStatusItem
     private var screenSelector: ScreenSelector?
     private var isCapturing = false
     private let hotkeyManager = HotkeyManager()
+
+    private static let soundEnabledKey = "notificationSoundEnabled"
+    private var soundEnabled: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: Self.soundEnabledKey) == nil {
+                return true // default on
+            }
+            return UserDefaults.standard.bool(forKey: Self.soundEnabledKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.soundEnabledKey) }
+    }
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -16,6 +28,11 @@ class StatusBarController {
 
         setupMenu()
         setupGlobalHotkeys()
+
+        // Warm up persistent process if enabled
+        if TextRecognizer.keepModelLoaded {
+            TextRecognizer.shared.warmUp()
+        }
     }
 
     private func setupMenu() {
@@ -25,6 +42,18 @@ class StatusBarController {
         captureItem.keyEquivalentModifierMask = [.command, .shift]
         captureItem.target = self
         menu.addItem(captureItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let keepLoadedItem = NSMenuItem(title: "Keep Model Loaded", action: #selector(toggleKeepLoaded(_:)), keyEquivalent: "")
+        keepLoadedItem.target = self
+        keepLoadedItem.state = TextRecognizer.keepModelLoaded ? .on : .off
+        menu.addItem(keepLoadedItem)
+
+        let soundItem = NSMenuItem(title: "Notification Sound", action: #selector(toggleSound(_:)), keyEquivalent: "")
+        soundItem.target = self
+        soundItem.state = soundEnabled ? .on : .off
+        menu.addItem(soundItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -70,6 +99,7 @@ class StatusBarController {
                         alert.runModal()
                         return
                     }
+                    self?.playCompletionSound()
                     ResultWindowController.show(text: text)
                 }
             }
@@ -77,7 +107,24 @@ class StatusBarController {
         screenSelector?.start()
     }
 
+    @objc private func toggleKeepLoaded(_ sender: NSMenuItem) {
+        let newValue = !TextRecognizer.keepModelLoaded
+        TextRecognizer.keepModelLoaded = newValue
+        sender.state = newValue ? .on : .off
+    }
+
+    @objc private func toggleSound(_ sender: NSMenuItem) {
+        soundEnabled.toggle()
+        sender.state = soundEnabled ? .on : .off
+    }
+
+    private func playCompletionSound() {
+        guard soundEnabled else { return }
+        NSSound(named: "Glass")?.play()
+    }
+
     @objc private func quit() {
+        TextRecognizer.shared.stopPersistentProcess()
         NSApplication.shared.terminate(nil)
     }
 }

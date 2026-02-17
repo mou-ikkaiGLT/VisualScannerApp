@@ -12,6 +12,7 @@ import Translation
 @available(macOS 15.0, *)
 struct TranslationBridge: View {
     let text: String
+    let targetLanguageCode: String
     let onTranslated: (String) -> Void
     @State private var config: TranslationSession.Configuration?
 
@@ -31,7 +32,7 @@ struct TranslationBridge: View {
                 }
             }
             .task {
-                let target = Locale.Language(identifier: "en")
+                let target = Locale.Language(identifier: targetLanguageCode)
 
                 // Detect source language to avoid the system language picker dialog
                 let recognizer = NLLanguageRecognizer()
@@ -44,7 +45,7 @@ struct TranslationBridge: View {
 
                 let source = Locale.Language(identifier: detected.rawValue)
 
-                // Skip if already English
+                // Skip if source matches target
                 if source.minimalIdentifier == target.minimalIdentifier {
                     await MainActor.run { onTranslated(text) }
                     return

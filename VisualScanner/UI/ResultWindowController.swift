@@ -110,6 +110,17 @@ class ResultWindowController {
         translationLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(translationLabel)
 
+        // Target language dropdown
+        let langPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+        langPopup.translatesAutoresizingMaskIntoConstraints = false
+        langPopup.controlSize = .small
+        langPopup.font = NSFont.systemFont(ofSize: 11)
+        langPopup.identifier = NSUserInterfaceItemIdentifier("langPopup")
+        langPopup.target = ResultWindowHelper.shared
+        langPopup.action = #selector(ResultWindowHelper.languageChanged(_:))
+        ResultWindowHelper.shared.populateLanguagePopup(langPopup)
+        contentView.addSubview(langPopup)
+
         // Retranslate button
         let retranslateButton = NSButton(frame: .zero)
         retranslateButton.title = "Retranslate"
@@ -187,8 +198,11 @@ class ResultWindowController {
             translationLabel.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 8),
             translationLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
 
+            langPopup.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
+            langPopup.leadingAnchor.constraint(equalTo: translationLabel.trailingAnchor, constant: 8),
+
             retranslateButton.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
-            retranslateButton.leadingAnchor.constraint(equalTo: translationLabel.trailingAnchor, constant: 8),
+            retranslateButton.leadingAnchor.constraint(equalTo: langPopup.trailingAnchor, constant: 6),
 
             lineBreakToggle.centerYAnchor.constraint(equalTo: translationLabel.centerYAnchor),
             lineBreakToggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
@@ -208,8 +222,10 @@ class ResultWindowController {
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
         if #available(macOS 15.0, *) {
+            let targetLang = ResultWindowHelper.shared.selectedLanguageCode()
             let bridge = NSHostingView(rootView: TranslationBridge(
                 text: textForTranslation,
+                targetLanguageCode: targetLang,
                 onTranslated: { [weak translatedTextView] translated in
                     guard let tv = translatedTextView else { return }
                     if translated.isEmpty {
@@ -243,6 +259,54 @@ class ResultWindowHelper: NSObject {
 
     private static let directoryKey = "saveDirectoryPath"
     private static let selectedFileKey = "saveSelectedFileName"
+    private static let targetLanguageKey = "targetLanguageCode"
+
+    // Languages supported by Apple Translation (macOS 15+)
+    static let supportedLanguages: [(name: String, code: String)] = [
+        ("English", "en"),
+        ("Arabic", "ar"),
+        ("Chinese (Simplified)", "zh-Hans"),
+        ("Chinese (Traditional)", "zh-Hant"),
+        ("Dutch", "nl"),
+        ("French", "fr"),
+        ("German", "de"),
+        ("Hindi", "hi"),
+        ("Indonesian", "id"),
+        ("Italian", "it"),
+        ("Japanese", "ja"),
+        ("Korean", "ko"),
+        ("Polish", "pl"),
+        ("Portuguese", "pt"),
+        ("Russian", "ru"),
+        ("Spanish", "es"),
+        ("Thai", "th"),
+        ("Turkish", "tr"),
+        ("Ukrainian", "uk"),
+        ("Vietnamese", "vi"),
+    ]
+
+    // MARK: - Language popup
+
+    func selectedLanguageCode() -> String {
+        UserDefaults.standard.string(forKey: Self.targetLanguageKey) ?? "en"
+    }
+
+    func populateLanguagePopup(_ popup: NSPopUpButton) {
+        popup.removeAllItems()
+        let saved = selectedLanguageCode()
+        for lang in Self.supportedLanguages {
+            popup.addItem(withTitle: lang.name)
+            popup.lastItem?.representedObject = lang.code
+            if lang.code == saved {
+                popup.selectItem(withTitle: lang.name)
+            }
+        }
+    }
+
+    @objc func languageChanged(_ sender: NSPopUpButton) {
+        guard let code = sender.selectedItem?.representedObject as? String else { return }
+        UserDefaults.standard.set(code, forKey: Self.targetLanguageKey)
+    }
 
     // MARK: - Text extraction
 
@@ -521,6 +585,12 @@ class ResultWindowHelper: NSObject {
             oldBridge.removeFromSuperview()
         }
 
+        // Read target language from dropdown
+        let targetLang = contentView.subviews
+            .compactMap { $0 as? NSPopUpButton }
+            .first(where: { $0.identifier?.rawValue == "langPopup" })?
+            .selectedItem?.representedObject as? String ?? "en"
+
         // Create new bridge with processed text
         if #available(macOS 15.0, *) {
             let translatedTV = contentView.subviews.compactMap({ $0 as? NSScrollView })
@@ -529,6 +599,7 @@ class ResultWindowHelper: NSObject {
 
             let bridge = NSHostingView(rootView: TranslationBridge(
                 text: textForTranslation,
+                targetLanguageCode: targetLang,
                 onTranslated: { [weak translatedTV] translated in
                     guard let tv = translatedTV else { return }
                     if translated.isEmpty {
