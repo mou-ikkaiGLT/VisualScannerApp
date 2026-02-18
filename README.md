@@ -2,23 +2,40 @@
 
 A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file.
 
-## Features
-![FullDemo](/Examples/FullDemo.gif)
+![Full Demo](/Examples/FullDemo.gif)
 
-- **Screen region capture** — select any area of the screen with a crosshair overlay
-- **PaddleOCR** — accurate text recognition for any language using the PP-OCRv5 server model
-- **Vertical text support** — correctly reads vertical CJK text in right-to-left order
-- **Editable scanned text** — modify or delete text in the original text area before translating or saving
-- **Auto-translation** — translates detected text using Apple's Translation framework (macOS 15+) with a target language selector supporting 20 languages
-- **Retranslate** — re-run translation after editing the scanned text or changing the target language
-- **Ignore line breaks** — strips OCR line breaks before translating for better results (on by default)
-- **Keep Model Loaded** — optionally keep the PaddleOCR model in memory for faster subsequent scans (see [note on memory usage](#keep-model-loaded))
-- **Notification sound** — plays a sound when OCR completes (toggleable from the menu bar)
-- **Text-to-speech** — speaks the original text with language-appropriate voice selection
-- **Save to file** — save scanned text and translations to `.txt` files with a persistent file/folder picker
-- **Copy to clipboard** — copies original and translated text
-- **Google Translate** — right-click the original text to open in Google Translate
-- **Global hotkey** — `Cmd+Shift+V` triggers capture from anywhere
+## Features
+
+### Screen Capture and OCR
+
+Press `Cmd+Shift+J` or click the menu bar icon to select any region of the screen. VisualScanner uses PaddleOCR's PP-OCRv5 server model for accurate text recognition across any language, with automatic reading order detection for vertical CJK text.
+
+<!-- ![Capture Example](/Examples/capture.png) -->
+
+### Translation
+
+Detected text is automatically translated using Apple's Translation framework (macOS 15+). Choose from 20 target languages with the dropdown selector. Line breaks from OCR are stripped by default for cleaner translations.
+
+<!-- ![Translation Example](/Examples/translation.png) -->
+
+### Edit and Retranslate
+
+The scanned text is fully editable. Make corrections or remove unwanted text, then click **Retranslate** to update the translation with your changes.
+
+<!-- ![Edit Example](/Examples/edit.png) -->
+
+### Save, Speak, and Copy
+
+Save scanned text and translations to `.txt` files using the built-in file picker. Use text-to-speech with automatic language detection, or copy everything to the clipboard. Right-click the original text to open it in Google Translate.
+
+<!-- ![Toolbar Example](/Examples/toolbar.png) -->
+
+### Menu Bar Options
+
+<!-- ![Menu Bar Example](/Examples/menubar.png) -->
+
+- **Keep Model Loaded** — keep PaddleOCR in memory for faster scans (see [note on memory usage](#keep-model-loaded))
+- **Notification Sound** — plays a sound when OCR completes
 
 ## Requirements
 
@@ -66,21 +83,9 @@ xattr -cr /Applications/VisualScanner.app
 VisualScanner requires the following macOS permissions to function:
 
 - **Screen Recording** — needed to capture screen regions via ScreenCaptureKit. You will be prompted to grant this in System Settings > Privacy & Security > Screen Recording on first use.
-- **Accessibility** — needed for the global hotkey (`Cmd+Shift+V`) to work via CGEvent tap. You will be prompted to grant this in System Settings > Privacy & Security > Accessibility.
+- **Accessibility** — needed for the global hotkey (`Cmd+Shift+J`) to work via CGEvent tap. You will be prompted to grant this in System Settings > Privacy & Security > Accessibility.
 
 The app is not sandboxed, as it needs to invoke the system Python installation to run PaddleOCR.
-
-## Usage
-
-1. Launch the app — a **VS** icon appears in the menu bar
-2. Press `Cmd+Shift+V` or click the menu bar icon and select **Capture Region**
-3. Click and drag to select a screen region containing text
-4. A floating window appears with the detected text and its translation
-5. Use the target language dropdown to change the translation language
-6. Edit the scanned text and click **Retranslate** to update the translation
-7. Use the toolbar buttons to **Save**, **Speak**, or **Copy** the results
-
-The menu bar dropdown also provides toggles for **Keep Model Loaded** and **Notification Sound**.
 
 ## Keep Model Loaded
 
@@ -90,7 +95,7 @@ By default, VisualScanner spawns a new Python process for each scan, which inclu
 
 ## Changing the Hotkey
 
-The global capture hotkey (`Cmd+Shift+V`) is defined in [`VisualScanner/UI/StatusBarController.swift` at line 60](VisualScanner/UI/StatusBarController.swift#L60). Change the `keyCode` and `modifiers` values, then rebuild. macOS key codes can be found [here](https://eastmanreference.com/complete-list-of-applescript-key-codes).
+The global capture hotkey (`Cmd+Shift+J`) is defined in [`VisualScanner/UI/StatusBarController.swift` at line 60](VisualScanner/UI/StatusBarController.swift#L60). Change the `keyCode` and `modifiers` values, then rebuild. macOS key codes can be found [here](https://eastmanreference.com/complete-list-of-applescript-key-codes).
 
 ## Project Structure
 
@@ -115,6 +120,7 @@ VisualScanner/
 ├── Utilities/
 │   └── HotkeyManager.swift    # Global hotkey via CGEvent tap
 └── Resources/
+    ├── Assets.xcassets         # App icon
     ├── Info.plist
     └── VisualScanner.entitlements
 ```

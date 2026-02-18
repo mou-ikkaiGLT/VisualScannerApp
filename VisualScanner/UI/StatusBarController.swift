@@ -38,7 +38,7 @@ class StatusBarController {
     private func setupMenu() {
         let menu = NSMenu()
 
-        let captureItem = NSMenuItem(title: "Capture Region", action: #selector(captureRegion), keyEquivalent: "v")
+        let captureItem = NSMenuItem(title: "Capture Region", action: #selector(captureRegion), keyEquivalent: "j")
         captureItem.keyEquivalentModifierMask = [.command, .shift]
         captureItem.target = self
         menu.addItem(captureItem)
@@ -65,10 +65,10 @@ class StatusBarController {
     }
 
     private func setupGlobalHotkeys() {
-        // Cmd+Shift+V → Capture region
-        // V = keyCode 9
+        // Cmd+Shift+J → Capture region
+        // J = keyCode 38
         hotkeyManager.register(
-            keyCode: 9,
+            keyCode: 38,
             modifiers: CGEventFlags([.maskCommand, .maskShift]),
             action: { [weak self] in self?.performCapture() }
         )
