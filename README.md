@@ -2,7 +2,7 @@
 
 A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file.
 
-![Full Demo](/Examples/FullDemo.gif)
+![Full Demo](/Examples/Fullvideo.gif)
 
 ## Features
 
@@ -10,29 +10,29 @@ A macOS menu bar app that captures a region of the screen, runs OCR using [Paddl
 
 Press `Cmd+Shift+J` or click the menu bar icon to select any region of the screen. VisualScanner uses PaddleOCR's PP-OCRv5 server model for accurate text recognition across any language, with automatic reading order detection for vertical CJK text.
 
-<!-- ![Capture Example](/Examples/capture.png) -->
+![Capture Example](/Examples/capture.gif)
 
 ### Translation
 
 Detected text is automatically translated using Apple's Translation framework (macOS 15+). Choose from 20 target languages with the dropdown selector. Line breaks from OCR are stripped by default for cleaner translations.
 
-<!-- ![Translation Example](/Examples/translation.png) -->
+![Translation Example](/Examples/translation.gif)
 
 ### Edit and Retranslate
 
 The scanned text is fully editable. Make corrections or remove unwanted text, then click **Retranslate** to update the translation with your changes.
 
-<!-- ![Edit Example](/Examples/edit.png) -->
+![Edit Example](/Examples/edit.gif)
 
 ### Save, Speak, and Copy
 
 Save scanned text and translations to `.txt` files using the built-in file picker. Use text-to-speech with automatic language detection, or copy everything to the clipboard. Right-click the original text to open it in Google Translate.
 
-<!-- ![Toolbar Example](/Examples/toolbar.png) -->
+![Toolbar Example](/Examples/toolbar.gif)
 
 ### Menu Bar Options
 
-<!-- ![Menu Bar Example](/Examples/menubar.png) -->
+![Menu Bar Example](/Examples/menubar.gif)
 
 - **Keep Model Loaded** — keep PaddleOCR in memory for faster scans (see [note on memory usage](#keep-model-loaded))
 - **Notification Sound** — plays a sound when OCR completes
