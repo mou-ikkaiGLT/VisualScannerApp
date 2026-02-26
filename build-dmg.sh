@@ -18,8 +18,11 @@ cp -R "$APP_PATH" "$STAGING/VisualScanner.app"
 STAGED_APP="$STAGING/VisualScanner.app"
 
 # Sign the app bundle
-echo "Signing app bundle..."
-codesign --force --sign - "$STAGED_APP"
+# Using a named certificate (from Keychain Access) instead of ad-hoc (-) so that
+# macOS TCC can maintain a stable identity for screen recording permissions.
+SIGN_IDENTITY="${SIGN_IDENTITY:-VisualScannerDev}"
+echo "Signing app bundle with identity: $SIGN_IDENTITY"
+codesign --force --deep --sign "$SIGN_IDENTITY" "$STAGED_APP"
 
 # Verify
 echo "Verifying signature..."
