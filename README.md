@@ -1,6 +1,6 @@
 # VisualScanner
 
-A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file.
+A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file. Useful when you need to read any text that cannot be automatically transcribed, such as epub files, online videos, or video games!
 
 ![Full Demo](/Examples/Fullvideo.gif)
 
@@ -95,6 +95,7 @@ By default, VisualScanner spawns a new Python process for each scan, which inclu
 
 ## Changing the Hotkey
 
+If the default hotkey for this app is (`Cmd+Shift+J`), however if you frequently use this hotkey for another app, you can manually change the hotkey as follows:
 The global capture hotkey (`Cmd+Shift+J`) is defined in [`VisualScanner/UI/StatusBarController.swift` at line 60](VisualScanner/UI/StatusBarController.swift#L60). Change the `keyCode` and `modifiers` values, then rebuild. macOS key codes can be found [here](https://eastmanreference.com/complete-list-of-applescript-key-codes).
 
 ## Project Structure
