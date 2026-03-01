@@ -125,3 +125,6 @@ VisualScanner/
     ├── Info.plist
     └── VisualScanner.entitlements
 ```
+
+## Project Dependencies
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) -- text detection and recognition
