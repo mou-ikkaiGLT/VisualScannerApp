@@ -1,6 +1,10 @@
 # VisualScanner
 
-A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file. Useful when you need to read any text that cannot be automatically transcribed, such as epub files, online videos, or video games! For standard installation just download ['VisualScanner.dmg'](VisualScanner.dmg). For detailed build instructions see [build instructions](#building).
+A macOS menu bar app that captures a region of the screen, runs OCR using [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), and displays the detected text in a floating window with built-in translation, text-to-speech, and save-to-file. For standard installation just download ['VisualScanner.dmg'](VisualScanner.dmg). For detailed build instructions see [build instructions](#building).
+
+## Goal
+
+If you have ever wanted to quickly copy and paste new characters and word, but the text just wasn't highlightable? This tool hopes to solve this issue by allowing users to highlight any text that cannot be automatically transcribed, such as text in epub files, online videos, or video games! 
 
 ![Full Demo](/Examples/Fullvideo.gif)
 
