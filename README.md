@@ -4,7 +4,7 @@ A macOS menu bar app that captures a region of the screen, runs OCR using [Paddl
 
 ## Goal
 
-If you have ever wanted to quickly copy and paste new characters and word, but the text just wasn't highlightable? This tool hopes to solve this issue by allowing users to highlight any text that cannot be automatically transcribed, such as text in epub files, online videos, or video games! 
+Have you have ever wanted to quickly copy and paste new characters and word, but the text just wasn't highlightable? This tool hopes to solve this issue by allowing users to highlight any text that cannot be automatically transcribed, such as text in ebooks, online videos, or video games! 
 
 ![Full Demo](/Examples/Fullvideo.gif)
 
